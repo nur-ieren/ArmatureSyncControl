@@ -13,13 +13,12 @@ Unity2022.3.22f1に導入してご利用下さい。
 バージョン管理は追々行います。  
 
 ## Features
-・異なるArmatureボーンを2つ指定して、そのTransformの値を揃える。
-そして、同じルートボーン名を参照して
-・Physboneコンポーネントの値を揃える。
-・
-・
-・
-
+・異なるArmatureボーンを2つ指定して、そのTransformの値を揃える。  
+そして、同じルートボーン名を参照して  
+・Physboneコンポーネントの値を揃える。  
+・  
+・  
+・  
 
 ## Reference
 Claude Code Free Plan(?  
