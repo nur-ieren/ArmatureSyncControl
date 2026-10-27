@@ -9,16 +9,15 @@ Project更新の際に元のProjectからの衣装と新規ProjectでのArmature
 おまけ機能もたくさんあります。  
 
 ## Overview
-Unity2022.3.22f1に導入してご利用下さい。
-バージョン管理は追々行います。  
+Unity2022.3.22f1に導入してご利用下さい。  
 
 ## Features
-・異なるArmatureボーンを2つ指定して、そのTransformの値を揃える。  
-そして、同じルートボーン名を参照して  
-・Physboneコンポーネントの値を揃える。  
-・  
-・  
-・  
+・異なるArmatureボーンを2つ指定して、そのTransformの値を揃える  
+機能を持ちます。そして、同じルートボーン名を参照して  
+・Physboneコンポーネントを追加・削除し、それらの値を揃える  
+・MA Scale Adjuster等のその他のコンポーネント追加・削除し、それらの値を揃える。
+・Armatureと同階層の同名SkinnedMeshRendererのBlendShapeを揃える。  
+機能を持ちます。
 
 ## Reference
 Claude Code Free Plan(?  
