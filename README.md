@@ -60,6 +60,6 @@ nur_ieren
 [X](https://x.com/nur_ieren)
 
 ## License
-This project is licensed under the MIT License. See LICENSE for details.
+This project is licensed under the MIT License. See LICENSE file for details.
 
 [MIT License](https://opensource.org/license/mit)
