@@ -55,11 +55,10 @@ This project was created to reduce repetitive adjustments when updating avatar a
 
 ## Author
 
-nur_ieren
-
-[X](https://x.com/nur_ieren)
+vor_ges
 
 ## License
+
 This project is licensed under the MIT License. See LICENSE file for details.
 
 [MIT License](https://opensource.org/license/mit)
