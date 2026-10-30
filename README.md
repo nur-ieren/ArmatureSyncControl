@@ -55,7 +55,8 @@ This project was created to reduce repetitive adjustments when updating avatar a
 
 ## Author
 
-vor_ges
+- nur_ieren
+- vor_ges
 
 ## License
 
