@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 // Unity 2022.3.22f1 / Assets/nur_ieren/ArmatureSyncTool.cs
-// メニュー: nur_ieren > Armature Sync Tool
+// Menu: nur_ieren > Armature Sync Tool   (メニュー: nur_ieren > Armature Sync Tool)
+// Wrapped in #if UNITY_EDITOR so it works outside an Editor folder.
 // UnityEditor を使うため、Editorフォルダ外でも動くよう全体を #if UNITY_EDITOR で囲んでいます。
 using System;
 using System.Collections.Generic;
@@ -13,9 +14,13 @@ namespace nur_ieren
     public class ArmatureSyncTool : EditorWindow
     {
         private const string PhysBoneNamespace = "VRC.SDK3.Dynamics.PhysBone.Components";
+        private const string LangPrefKey = "nur_ieren.ArmatureSyncTool.Language";
 
-        private GameObject _reference;   // 参考にする側
-        private GameObject _target;      // 適応する側
+        // 0 = 日本語, 1 = English
+        private static int _lang;
+
+        private GameObject _reference;   // 参考にする側 / Reference
+        private GameObject _target;      // 適応する側 / Target
 
         private bool _syncTransform = true;
         private bool _syncActive = true;
@@ -31,34 +36,60 @@ namespace nur_ieren
         private bool _listed;
         private Vector2 _scroll;
 
+        // 日本語 / English を切り替えて返す
+        private static string T(string ja, string en)
+        {
+            return _lang == 0 ? ja : en;
+        }
+
         [MenuItem("nur_ieren/Armature Sync Tool")]
         private static void Open()
         {
             var w = GetWindow<ArmatureSyncTool>("Armature Sync");
-            w.minSize = new Vector2(380, 440);
+            w.minSize = new Vector2(380, 480);
+        }
+
+        private void OnEnable()
+        {
+            _lang = EditorPrefs.GetInt(LangPrefKey, 0);
         }
 
         // ------------------------------------------------------------------ GUI
         private void OnGUI()
         {
-            EditorGUILayout.LabelField("Armature Sync Tool", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("同名ボーンを参考側 → 適応側へ揃えます。（Undo可）", MessageType.Info);
-
-            _reference = (GameObject)EditorGUILayout.ObjectField("参考にするArmature", _reference, typeof(GameObject), true);
-            _target = (GameObject)EditorGUILayout.ObjectField("適応するArmature", _target, typeof(GameObject), true);
+            int newLang = GUILayout.Toolbar(_lang, new[] { "日本語", "English" });
+            if (newLang != _lang)
+            {
+                _lang = newLang;
+                EditorPrefs.SetInt(LangPrefKey, _lang);
+            }
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("同期する項目", EditorStyles.boldLabel);
-            _syncTransform = EditorGUILayout.ToggleLeft("Transform (Position / Rotation / Scale)", _syncTransform);
-            _syncActive = EditorGUILayout.ToggleLeft("チェックマーク (Active)", _syncActive);
+            EditorGUILayout.LabelField("Armature Sync Tool", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                T("同名ボーンを参考側 → 適応側へ揃えます。（Undo可）",
+                  "Syncs bones with the same name from Reference → Target. (Undo supported)"),
+                MessageType.Info);
+
+            _reference = (GameObject)EditorGUILayout.ObjectField(T("参考にするArmature", "Reference Armature"), _reference, typeof(GameObject), true);
+            _target = (GameObject)EditorGUILayout.ObjectField(T("適応するArmature", "Target Armature"), _target, typeof(GameObject), true);
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(T("同期する項目", "Items to sync"), EditorStyles.boldLabel);
+            _syncTransform = EditorGUILayout.ToggleLeft(T("Transform (Position / Rotation / Scale)", "Transform (Position / Rotation / Scale)"), _syncTransform);
+            _syncActive = EditorGUILayout.ToggleLeft(T("チェックマーク (Active)", "Checkmark (Active)"), _syncActive);
             _syncTag = EditorGUILayout.ToggleLeft("Tag", _syncTag);
-            _syncPhysBone = EditorGUILayout.ToggleLeft("PhysBone / PhysBoneCollider (追加・削除・値コピー)", _syncPhysBone);
-            _syncOther = EditorGUILayout.ToggleLeft("その他のコンポーネント (MA Scale Adjuster等 / 追加・値コピー)", _syncOther);
-            _syncBlendShape = EditorGUILayout.ToggleLeft("Armatureと同階層の同名ObjectのBlendShape (SkinnedMeshRenderer)", _syncBlendShape);
+            _syncPhysBone = EditorGUILayout.ToggleLeft(
+                T("PhysBone / PhysBoneCollider (追加・削除・値コピー)", "PhysBone / PhysBoneCollider (add / remove / copy values)"), _syncPhysBone);
+            _syncOther = EditorGUILayout.ToggleLeft(
+                T("その他のコンポーネント (MA Scale Adjuster等 / 追加・値コピー)", "Other components (e.g. MA Scale Adjuster / add / copy values)"), _syncOther);
+            _syncBlendShape = EditorGUILayout.ToggleLeft(
+                T("Armatureと同階層の同名ObjectのBlendShape (SkinnedMeshRenderer)", "BlendShapes of same-named objects beside the Armature (SkinnedMeshRenderer)"), _syncBlendShape);
             using (new EditorGUI.DisabledScope(!_syncBlendShape))
             {
                 EditorGUI.indentLevel++;
-                _removeMaShapeComponents = EditorGUILayout.ToggleLeft("先に適応側の MA Blendshape Sync / MA Shape Changer を削除", _removeMaShapeComponents);
+                _removeMaShapeComponents = EditorGUILayout.ToggleLeft(
+                    T("先に適応側の MA Blendshape Sync / MA Shape Changer を削除", "First remove MA Blendshape Sync / MA Shape Changer on the Target"), _removeMaShapeComponents);
                 EditorGUI.indentLevel--;
             }
 
@@ -69,12 +100,14 @@ namespace nur_ieren
 
             using (new EditorGUI.DisabledScope(error != null))
             {
-                if (GUILayout.Button("実行（同期 + 適応側にしかないボーンをリスト化）", GUILayout.Height(30)))
+                if (GUILayout.Button(
+                        T("実行（同期 + 適応側にしかないボーンをリスト化）", "Run (sync + list bones that only exist on the Target)"),
+                        GUILayout.Height(30)))
                 {
                     Apply();
                     BuildList();
                 }
-                if (GUILayout.Button("リストだけ更新"))
+                if (GUILayout.Button(T("リストだけ更新", "Refresh list only")))
                 {
                     BuildList();
                 }
@@ -88,11 +121,13 @@ namespace nur_ieren
             if (!_listed) return;
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField($"参考側に無いボーン: {_onlyInTarget.Count} 件", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                T($"参考側に無いボーン: {_onlyInTarget.Count} 件", $"Bones not in Reference: {_onlyInTarget.Count}"),
+                EditorStyles.boldLabel);
 
             using (new EditorGUI.DisabledScope(_onlyInTarget.Count == 0))
             {
-                if (GUILayout.Button("リスト全てをHierarchyで選択"))
+                if (GUILayout.Button(T("リスト全てをHierarchyで選択", "Select all listed in Hierarchy")))
                 {
                     Selection.objects = _onlyInTarget.Where(t => t != null).Select(t => (UnityEngine.Object)t.gameObject).ToArray();
                 }
@@ -100,15 +135,18 @@ namespace nur_ieren
 
             if (_excluded.Count > 0)
             {
-                _showExcluded = EditorGUILayout.Foldout(_showExcluded, $"削除してはいけないため除外: {_excluded.Count} 件", true);
+                _showExcluded = EditorGUILayout.Foldout(
+                    _showExcluded,
+                    T($"削除してはいけないため除外: {_excluded.Count} 件", $"Excluded (must not be deleted): {_excluded.Count}"),
+                    true);
                 if (_showExcluded)
                 {
                     foreach (var ex in _excluded)
                     {
                         if (ex.T == null) continue;
                         EditorGUILayout.BeginHorizontal();
-                        EditorGUILayout.LabelField(new GUIContent(GetPath(ex.T, _target.transform), ex.Reason), GUILayout.MinWidth(100));
-                        if (GUILayout.Button("選択", GUILayout.Width(50)))
+                        EditorGUILayout.LabelField(new GUIContent(GetPath(ex.T, _target.transform), ex.Reason()), GUILayout.MinWidth(100));
+                        if (GUILayout.Button(T("選択", "Select"), GUILayout.Width(60)))
                         {
                             Selection.activeGameObject = ex.T.gameObject;
                             EditorGUIUtility.PingObject(ex.T.gameObject);
@@ -124,7 +162,7 @@ namespace nur_ieren
                 if (t == null) continue;
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(GetPath(t, _target.transform), GUILayout.MinWidth(100));
-                if (GUILayout.Button("選択", GUILayout.Width(50)))
+                if (GUILayout.Button(T("選択", "Select"), GUILayout.Width(60)))
                 {
                     Selection.activeGameObject = t.gameObject;
                     EditorGUIUtility.PingObject(t.gameObject);
@@ -136,10 +174,12 @@ namespace nur_ieren
 
         private string Validate()
         {
-            if (_reference == null || _target == null) return "参考側と適応側の両方を指定してください。";
-            if (_reference == _target) return "同じオブジェクトは指定できません。";
+            if (_reference == null || _target == null)
+                return T("参考側と適応側の両方を指定してください。", "Please assign both the Reference and the Target.");
+            if (_reference == _target)
+                return T("同じオブジェクトは指定できません。", "The same object cannot be used for both.");
             if (_target.transform.IsChildOf(_reference.transform) || _reference.transform.IsChildOf(_target.transform))
-                return "親子関係にあるオブジェクト同士は指定できません。";
+                return T("親子関係にあるオブジェクト同士は指定できません。", "Objects in a parent/child relationship cannot be used together.");
             return null;
         }
 
@@ -153,7 +193,14 @@ namespace nur_ieren
         private class Excluded
         {
             public Transform T;
-            public string Reason;
+            public bool IsPrefab;   // true: Armature内のPrefab / false: SkinnedMeshRendererが参照
+
+            public string Reason()
+            {
+                return IsPrefab
+                    ? ArmatureSyncTool.T("Armature内のPrefab（同期・リストの対象外）", "Prefab inside the Armature (excluded from sync and list)")
+                    : ArmatureSyncTool.T("SkinnedMeshRendererが参照するBoneを含む（リストから除外）", "Contains a bone referenced by a SkinnedMeshRenderer (excluded from list)");
+            }
         }
 
         // Armature内に置かれたPrefabインスタンス(中のArmatureやメッシュを含む)の一員か判定する。
@@ -208,7 +255,7 @@ namespace nur_ieren
                 if (IsInNestedPrefab(d, dstRoot, out var nestedRoot))
                 {
                     if (nestedRoot == d)
-                        excluded.Add(new Excluded { T = d, Reason = "Armature内のPrefab（同期・リストの対象外）" });
+                        excluded.Add(new Excluded { T = d, IsPrefab = true });
                     continue;
                 }
 
@@ -224,7 +271,9 @@ namespace nur_ieren
                     string path = GetPath(d, dstRoot);
                     var hit = cands.FirstOrDefault(x => GetPath(x, srcRoot) == path);
                     if (hit != null) s = hit;
-                    else Debug.LogWarning($"[ArmatureSync] 参考側に同名ボーンが複数あります: '{d.name}' → 先頭を使用します。");
+                    else Debug.LogWarning(T(
+                        $"[ArmatureSync] 参考側に同名ボーンが複数あります: '{d.name}' → 先頭を使用します。",
+                        $"[ArmatureSync] Multiple bones named '{d.name}' in Reference → using the first one."));
                 }
 
                 pairs.Add(new Pair { Src = s, Dst = d });
@@ -237,9 +286,9 @@ namespace nur_ieren
             if (scope == srcRoot.root) scope = dstRoot;
 
             var referenced = new HashSet<Transform>();
-            void AddWithAncestors(Transform t)
+            void AddWithAncestors(Transform tr)
             {
-                for (; t != null; t = t.parent) referenced.Add(t);
+                for (; tr != null; tr = tr.parent) referenced.Add(tr);
             }
             foreach (var smr in scope.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
@@ -264,7 +313,7 @@ namespace nur_ieren
             foreach (var u in protectedSet)
             {
                 if (u.parent == null || !protectedSet.Contains(u.parent))
-                    excluded.Add(new Excluded { T = u, Reason = "SkinnedMeshRendererが参照するBoneを含む（リストから除外）" });
+                    excluded.Add(new Excluded { T = u, IsPrefab = false });
             }
             unmatched.RemoveAll(u => protectedSet.Contains(u));
         }
@@ -323,7 +372,9 @@ namespace nur_ieren
                     }
                     catch (Exception e)
                     {
-                        Debug.LogWarning($"[ArmatureSync] Tag設定失敗 '{p.Dst.name}': {e.Message}");
+                        Debug.LogWarning(T(
+                            $"[ArmatureSync] Tag設定失敗 '{p.Dst.name}': {e.Message}",
+                            $"[ArmatureSync] Failed to set Tag on '{p.Dst.name}': {e.Message}"));
                     }
                 }
 
@@ -356,7 +407,9 @@ namespace nur_ieren
                         var comp = Undo.AddComponent(p.Dst.gameObject, type);
                         if (comp == null)
                         {
-                            Debug.LogWarning($"[ArmatureSync] コンポーネントを追加できませんでした: {type.Name} on '{p.Dst.name}'");
+                            Debug.LogWarning(T(
+                                $"[ArmatureSync] コンポーネントを追加できませんでした: {type.Name} on '{p.Dst.name}'",
+                                $"[ArmatureSync] Could not add component: {type.Name} on '{p.Dst.name}'"));
                             break;
                         }
                         added++;
@@ -393,7 +446,9 @@ namespace nur_ieren
             }
 
             Undo.CollapseUndoOperations(group);
-            Debug.Log($"[ArmatureSync] 完了: {pairs.Count} 個のボーンを同期 / コンポーネント 追加 {added} 件, 削除(PhysBone系) {removed} 件");
+            Debug.Log(T(
+                $"[ArmatureSync] 完了: {pairs.Count} 個のボーンを同期 / コンポーネント 追加 {added} 件, 削除(PhysBone系) {removed} 件",
+                $"[ArmatureSync] Done: synced {pairs.Count} bones / components added {added}, removed (PhysBone) {removed}"));
         }
 
         // BlendShape の値を上書きされないよう、適応側アバター内の
@@ -416,15 +471,19 @@ namespace nur_ieren
                 {
                     Undo.DestroyObjectImmediate(c);
                     removed++;
-                    Debug.Log($"[ArmatureSync] 削除: {label}");
+                    Debug.Log(T($"[ArmatureSync] 削除: {label}", $"[ArmatureSync] Removed: {label}"));
                 }
                 catch (Exception e)
                 {
-                    Debug.LogWarning($"[ArmatureSync] 削除できませんでした（Prefab由来の可能性）: {label} / {e.Message}");
+                    Debug.LogWarning(T(
+                        $"[ArmatureSync] 削除できませんでした（Prefab由来の可能性）: {label} / {e.Message}",
+                        $"[ArmatureSync] Could not remove (may come from a Prefab): {label} / {e.Message}"));
                 }
             }
 
-            Debug.Log($"[ArmatureSync] MA Blendshape Sync / Shape Changer を {removed} 件削除しました。");
+            Debug.Log(T(
+                $"[ArmatureSync] MA Blendshape Sync / Shape Changer を {removed} 件削除しました。",
+                $"[ArmatureSync] Removed {removed} MA Blendshape Sync / Shape Changer component(s)."));
         }
 
         // Armatureと同じ階層(同じ親の直下)にある同名Objectの SkinnedMeshRenderer の BlendShape を揃える。
@@ -435,7 +494,9 @@ namespace nur_ieren
             Transform dstParent = _target.transform.parent;
             if (refParent == null || dstParent == null)
             {
-                Debug.LogWarning("[ArmatureSync] ArmatureがルートにあるためBlendShape同期をスキップしました（同じ階層のObjectが存在しません）。");
+                Debug.LogWarning(T(
+                    "[ArmatureSync] ArmatureがルートにあるためBlendShape同期をスキップしました（同じ階層のObjectが存在しません）。",
+                    "[ArmatureSync] Skipped BlendShape sync: the Armature is at the scene root (no sibling objects)."));
                 return;
             }
 
@@ -482,10 +543,14 @@ namespace nur_ieren
 
                 meshCount++;
                 shapeCount += copied;
-                Debug.Log($"[ArmatureSync] BlendShape同期: '{dstSibling.name}' {copied}/{dstSmr.sharedMesh.blendShapeCount} 件");
+                Debug.Log(T(
+                    $"[ArmatureSync] BlendShape同期: '{dstSibling.name}' {copied}/{dstSmr.sharedMesh.blendShapeCount} 件",
+                    $"[ArmatureSync] BlendShape sync: '{dstSibling.name}' {copied}/{dstSmr.sharedMesh.blendShapeCount}"));
             }
 
-            Debug.Log($"[ArmatureSync] BlendShape同期 完了: {meshCount} 個のメッシュ, 計 {shapeCount} 件");
+            Debug.Log(T(
+                $"[ArmatureSync] BlendShape同期 完了: {meshCount} 個のメッシュ, 計 {shapeCount} 件",
+                $"[ArmatureSync] BlendShape sync done: {meshCount} mesh(es), {shapeCount} shape(s) in total"));
         }
 
         private static bool IsPhysBoneType(Type t)
@@ -593,7 +658,9 @@ namespace nur_ieren
                 var newValue = ResolveReference(v, vt, ctx);
                 if (newValue == null)
                 {
-                    Debug.LogWarning($"[ArmatureSync] 適応側に対応先が見つからず空にしました: {GetPath(dstComp.transform, ctx.DstScope)} / {it.propertyPath} → '{vt.name}'");
+                    Debug.LogWarning(T(
+                        $"[ArmatureSync] 適応側に対応先が見つからず空にしました: {GetPath(dstComp.transform, ctx.DstScope)} / {it.propertyPath} → '{vt.name}'",
+                        $"[ArmatureSync] No counterpart found on the Target, cleared: {GetPath(dstComp.transform, ctx.DstScope)} / {it.propertyPath} → '{vt.name}'"));
 
                     string path = it.propertyPath;
                     int pos = path.IndexOf(arrayToken, StringComparison.Ordinal);
