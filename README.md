@@ -1,5 +1,7 @@
 # ArmatureSyncControl
 
+[日本語](README.ja.md)
+
 A Unity Editor tool for synchronizing armature hierarchies and related avatar settings.
 
 ## Concept
