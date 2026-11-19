@@ -51,10 +51,6 @@ You can also click `リストだけ更新` to refresh the unmatched bone list wi
 - Unmatched bones are not automatically deleted. The tool only lists them.
 - Review the selected synchronization options before applying changes, especially when working with Modular Avatar components.
 
-## Development
-
-This project was created to reduce repetitive adjustments when updating avatar armatures and component settings.
-
 ## Author
 
 - nur_ieren
